@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum AccountType {
+  Wallet
+  Checking
+  Savings
+  Investment
+  Credit
+}
+
+enum CurrencyType {
+  KHR
+  USD
+}
+
+enum AccountStatus {
+  active
+  frozen
+  closed
+  pending
+}
+
+enum TransactionType {
+  deposit
+  withdraw
+  transfer
+}
+
+enum PermissionAction {
+  create
+  update
+  delete
+  view
+}
+
+// Models
+model User {
+  id             Int             @id @default(autoincrement())
+  email          String          @unique
+  password       String
+  roleId         Int
+  role           Role            @relation(fields: [roleId], references: [id])
+  firstName      String
+  lastName       String
+  phoneNumber    String?         @unique
+  accountStatus  AccountStatus   @default(active)
+  profileImage   String?         @default("/public/images/default-profile.jpg")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  address        Address?
+  accounts       Account[]
+  transactions   Transaction[]
+  auditLogs      AuditLog[]
+  userRoles      UserRole[]
+}
+
+model Address {
+  id        Int     @id @default(autoincrement())
+  city      String
+  district  String
+  commune   String
+  village   String
+  userId    Int     @unique
+  user      User    @relation(fields: [userId], references: [id])
+}
+
+model Account {
+  id              Int           @id @default(autoincrement())
+  userId          Int
+  user            User          @relation(fields: [userId], references: [id])
+  accountType     AccountType
+  currency        CurrencyType
+  accountNumber   String        @unique
+  balance         Float         @default(0)
+  status          AccountStatus @default(active)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  sentTransactions     Transaction[] @relation("SentTransactions")
+  receivedTransactions Transaction[] @relation("ReceivedTransactions")
+}
+
+model Transaction {
+  id                  Int           @id @default(autoincrement())
+  type                TransactionType
+  amount              Float
+  description         String?
+  userId              Int
+  user                User          @relation(fields: [userId], references: [id])
+  senderAccountId     Int?
+  receiverAccountId   Int?
+  senderAccount       Account?      @relation("SentTransactions", fields: [senderAccountId], references: [id])
+  receiverAccount     Account?      @relation("ReceivedTransactions", fields: [receiverAccountId], references: [id])
+  createdAt           DateTime      @default(now())
+}
+
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  action      String
+  details     String?
+  logType     String
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+model Role {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  users       User[]
+  userRoles   UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int             @id @default(autoincrement())
+  action      PermissionAction
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId      Int
+  permissionId Int
+  role        Role      @relation(fields: [roleId], references: [id])
+  permission  Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId      Int
+  roleId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  role        Role      @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
