@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Icons } from '@/components/icons';
 import { Wallet, AlertCircle } from 'lucide-react';
 
 type Account = {
@@ -59,6 +58,37 @@ export default function AccountBalance() {
     fetchAccounts();
   }, []);
 
+  // Format account number in Cambodian bank format (XXXX-XXX-XXXXX)
+  const formatAccountNumber = (accountNumber: string) => {
+    if (!accountNumber) return 'N/A';
+    const cleanNumber = accountNumber.replace(/\D/g, '');
+    if (cleanNumber.length === 12) {
+      return cleanNumber.replace(/(\d{4})(\d{3})(\d{5})/, '$1-$2-$3');
+    }
+    return accountNumber; // Return original if not 12 digits
+  };
+
+  // Format currency in Cambodian style
+  const formatCurrency = (amount: number, currency: string) => {
+    if (currency === 'KHR') {
+      // Cambodian Riel: no decimals, comma separators, ៛ symbol
+      return new Intl.NumberFormat('km-KH', {
+        style: 'currency',
+        currency: 'KHR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount);
+    } else {
+      // USD: 2 decimals, $ symbol
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -95,13 +125,6 @@ export default function AccountBalance() {
 
   const currentAccount = accounts[activeTab];
 
-  const formattedBalance = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currentAccount.currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(currentAccount.balance);
-
   return (
     <div className="space-y-4">
       <Card className="border border-gray-200 bg-white shadow-sm">
@@ -114,14 +137,16 @@ export default function AccountBalance() {
               variant={currentAccount.status === 'active' ? 'default' : 'destructive'}
               className={currentAccount.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
             >
-              {currentAccount.status}
+              {currentAccount.status.toUpperCase()}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
           <div className="flex justify-between items-end">
             <div>
-              <p className="text-3xl font-bold text-gray-900">{formattedBalance}</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {formatCurrency(currentAccount.balance, currentAccount.currency)}
+              </p>
               <p className="text-sm text-gray-500 mt-1">
                 {currentAccount.accountType} Account
               </p>
@@ -135,11 +160,15 @@ export default function AccountBalance() {
           <div className="flex justify-between w-full text-sm">
             <div>
               <p className="text-gray-500">Account Number</p>
-              <p className="font-medium text-gray-900">{currentAccount.accountNumber}</p>
+              <p className="font-mono font-medium tracking-tight">
+                {formatAccountNumber(currentAccount.accountNumber)}
+              </p>
             </div>
             <div className="text-right">
               <p className="text-gray-500">Currency</p>
-              <p className="font-medium text-gray-900">{currentAccount.currency}</p>
+              <p className="font-medium">
+                {currentAccount.currency === 'KHR' ? 'រៀល (KHR)' : 'ដុល្លារ (USD)'}
+              </p>
             </div>
           </div>
         </CardFooter>
@@ -157,7 +186,7 @@ export default function AccountBalance() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {account.currency}
+              {account.currency === 'KHR' ? 'KHR' : 'USD'}
             </button>
           ))}
         </div>

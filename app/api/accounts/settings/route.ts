@@ -1,9 +1,17 @@
 // /app/api/settings/route.ts
-import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 
 export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
   const {
     firstName,
     lastName,
@@ -16,34 +24,29 @@ export async function POST(req: Request) {
   } = await req.json();
 
   try {
-    const userId = 1;  // Assuming the logged-in user ID is available via session or token
-    
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { email: session.user.email },
     });
 
     if (!user) {
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    // Handle password change
     if (currentPassword && newPassword) {
       const passwordMatch = await bcrypt.compare(currentPassword, user.password);
-
       if (!passwordMatch) {
         return NextResponse.json({ message: 'Current password is incorrect' }, { status: 400 });
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       await prisma.user.update({
-        where: { id: userId },
+        where: { email: session.user.email },
         data: { password: hashedPassword },
       });
     }
 
-    // Update other profile fields
     await prisma.user.update({
-      where: { id: userId },
+      where: { email: session.user.email },
       data: {
         firstName,
         lastName,
@@ -57,6 +60,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Settings updated successfully' });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ message: 'Error updating settings' }, { status: 500 });
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }

@@ -1,0 +1,4 @@
+/* In your globals.css or main CSS file */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
